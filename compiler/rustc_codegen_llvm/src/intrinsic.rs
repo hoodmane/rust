@@ -694,8 +694,12 @@ fn codegen_emcc_try<'ll>(
         //      %catch_data[1] = %is_rust_panic
         //      call %catch_func(%data, %catch_data)
         //      ret 1
-        let then = bx.append_sibling_block("then");
-        let catch = bx.append_sibling_block("catch");
+        let normal = bx.append_sibling_block("normal");
+        let catchswitch = bx.append_sibling_block("catchswitch");
+        let catchpad_all = bx.append_sibling_block("catchpad_all");
+        let caught_rust = bx.append_sibling_block("caught_rust");
+        let caught_foreign = bx.append_sibling_block("caught_foreign");
+        let caught = bx.append_sibling_block("caught");
 
         let try_func = llvm::get_param(bx.llfn(), 0);
         let data = llvm::get_param(bx.llfn(), 1);
@@ -703,7 +707,7 @@ fn codegen_emcc_try<'ll>(
         let try_func_ty = bx.type_func(&[bx.type_i8p()], bx.type_void());
         bx.invoke(try_func_ty, try_func, &[data], then, catch, None);
 
-        bx.switch_to_block(then);
+        bx.switch_to_block(normal);
         bx.ret(bx.const_i32(0));
 
         // Type indicator for the exception being thrown.
@@ -711,19 +715,24 @@ fn codegen_emcc_try<'ll>(
         // The first value in this tuple is a pointer to the exception object
         // being thrown.  The second value is a "selector" indicating which of
         // the landing pad clauses the exception's type had been matched to.
-        bx.switch_to_block(catch);
-        let tydesc = bx.eh_catch_typeinfo();
-        let lpad_ty = bx.type_struct(&[bx.type_i8p(), bx.type_i32()], false);
-        let vals = bx.landing_pad(lpad_ty, bx.eh_personality(), 2);
-        bx.add_clause(vals, tydesc);
-        bx.add_clause(vals, bx.const_null(bx.type_i8p()));
-        let ptr = bx.extract_value(vals, 0);
-        let selector = bx.extract_value(vals, 1);
+        bx.switch_to_block(catchswitch);
+        let cs = bx.catch_switch(None, None, &[catchpad_all]);
+        
+        // The flag value of 64 indicates a "catch-all".
+        bx.switch_to_block(catchpad_all);
+        let flags = bx.const_i32(64);
+        let null = bx.const_null(bx.type_i8p());
+        let funclet = bx.catch_pad(cs, &[null, flags, null]);
 
-        // Check if the typeid we got is the one for a Rust panic.
+        let ptr = bx.call_intrinsic("llvm.wasm.get.exception", &[funclet]);
+        let selector = bx.call_intrinsic("llvm.wasm.get.ehselector", &[funclet]);
+        let tydesc = bx.eh_catch_typeinfo();
         let rust_typeid = bx.call_intrinsic("llvm.eh.typeid.for", &[tydesc]);
         let is_rust_panic = bx.icmp(IntPredicate::IntEQ, selector, rust_typeid);
         let is_rust_panic = bx.zext(is_rust_panic, bx.type_bool());
+
+        // Call __cxa_begin_catch!
+        let cxa_begin_catch = bx.declare_cfn("__cxa_begin_catch", llvm::UnnamedAddr::No, fn_ty);
 
         // We need to pass two values to catch_func (ptr and is_rust_panic), so
         // create an alloca and pass a pointer to that.
