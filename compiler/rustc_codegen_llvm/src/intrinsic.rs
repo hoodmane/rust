@@ -695,11 +695,20 @@ fn codegen_emcc_try<'ll>(
         //      call %catch_func(%data, %catch_data)
         //      ret 1
         let normal = bx.append_sibling_block("normal");
+        let caught = bx.append_sibling_block("caught");
         let catchswitch = bx.append_sibling_block("catchswitch");
         let catchpad_all = bx.append_sibling_block("catchpad_all");
-        let caught_rust = bx.append_sibling_block("caught_rust");
-        let caught_foreign = bx.append_sibling_block("caught_foreign");
-        let caught = bx.append_sibling_block("caught");
+        // let caught_rust = bx.append_sibling_block("caught_rust");
+        // let caught_foreign = bx.append_sibling_block("caught_foreign");
+
+        let ty_cxa_begin_catch = bx.type_func(
+            &[bx.type_ptr_to(bx.type_void())],
+            bx.type_ptr_to(bx.type_void()),
+        );
+        let ty_cxa_end_catch = bx.type_func(
+            &[],
+            bx.type_ptr_to(bx.type_void()),
+        );
 
         let try_func = llvm::get_param(bx.llfn(), 0);
         let data = llvm::get_param(bx.llfn(), 1);
@@ -709,6 +718,8 @@ fn codegen_emcc_try<'ll>(
 
         bx.switch_to_block(normal);
         bx.ret(bx.const_i32(0));
+        bx.switch_to_block(caught);
+        bx.ret(bx.const_i32(1));
 
         // Type indicator for the exception being thrown.
         //
@@ -731,8 +742,10 @@ fn codegen_emcc_try<'ll>(
         let is_rust_panic = bx.icmp(IntPredicate::IntEQ, selector, rust_typeid);
         let is_rust_panic = bx.zext(is_rust_panic, bx.type_bool());
 
-        // Call __cxa_begin_catch!
-        let cxa_begin_catch = bx.declare_cfn("__cxa_begin_catch", llvm::UnnamedAddr::No, fn_ty);
+        // Call __cxa_begin_catch
+        let cxa_begin_catch = bx.declare_cfn("__cxa_begin_catch", llvm::UnnamedAddr::No, ty_cxa_begin_catch);
+        let adjusted_ptr = bx.call(ty_cxa_begin_catch, cxa_begin_catch, &[ptr], Some(&funclet));
+
 
         // We need to pass two values to catch_func (ptr and is_rust_panic), so
         // create an alloca and pass a pointer to that.
@@ -749,8 +762,11 @@ fn codegen_emcc_try<'ll>(
         let catch_data = bx.bitcast(catch_data, bx.type_i8p());
 
         let catch_ty = bx.type_func(&[bx.type_i8p(), bx.type_i8p()], bx.type_void());
-        bx.call(catch_ty, catch_func, &[data, catch_data], None);
-        bx.ret(bx.const_i32(1));
+        bx.call(catch_ty, catch_func, &[data, catch_data], Some(&funclet));
+        // Call __cxa_end_catch
+        let cxa_end_catch = bx.declare_cfn("__cxa_end_catch", llvm::UnnamedAddr::No, ty_cxa_end_catch);
+        bx.call(ty_cxa_end_catch, cxa_end_catch, &[], Some(&funclet));
+        bx.catch_ret(caught);
     });
 
     // Note that no invoke is used here because by definition this function
