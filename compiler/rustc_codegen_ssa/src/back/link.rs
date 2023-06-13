@@ -2015,7 +2015,6 @@ fn linker_with_args<'a, B: ArchiveBuilder<'a>>(
     // introduce a target spec option for order-independent linker options, migrate built-in specs
     // to it and remove the option.
     add_post_link_args(cmd, sess, flavor);
-
     cmd.take_cmd()
 }
 
@@ -2056,13 +2055,8 @@ fn add_order_independent_options(
         cmd.no_crt_objects();
     }
 
-    if sess.target.os == "emscripten" {
-        cmd.arg("-s");
-        cmd.arg(if sess.panic_strategy() == PanicStrategy::Abort {
-            "DISABLE_EXCEPTION_CATCHING=1"
-        } else {
-            "DISABLE_EXCEPTION_CATCHING=0"
-        });
+    if sess.target.os == "emscripten" && sess.panic_strategy() == PanicStrategy::Unwind {
+        cmd.arg("-fwasm-exceptions");
     }
 
     if flavor == LinkerFlavor::PtxLinker {

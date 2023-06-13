@@ -108,9 +108,8 @@ unsafe fn configure_llvm(sess: &Session) {
                 add("-mergefunc-use-aliases", false);
             }
         }
-
         if sess.target.os == "emscripten" && sess.panic_strategy() == PanicStrategy::Unwind {
-            add("-enable-emscripten-cxx-exceptions", false);
+            add("-wasm-enable-sjlj", false);
         }
 
         // HACK(eddyb) LLVM inserts `llvm.assume` calls to preserve align attributes
