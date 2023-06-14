@@ -676,6 +676,7 @@ fn codegen_emcc_try<'ll>(
     catch_func: &'ll Value,
     dest: &'ll Value,
 ) {
+    println!("codegen_emcc_try!");
     let (llty, llfn) = get_rust_try_fn(bx, &mut |mut bx| {
         // Codegens the shims described above:
         //
@@ -709,12 +710,20 @@ fn codegen_emcc_try<'ll>(
             &[],
             bx.type_ptr_to(bx.type_void()),
         );
+        let ty_get_exc = bx.type_func(
+            &[],
+            bx.type_ptr_to(bx.type_void()),
+        );
+        let ty_get_sel = bx.type_func(
+            &[],
+            bx.type_ptr_to(bx.type_void()),
+        );
 
         let try_func = llvm::get_param(bx.llfn(), 0);
         let data = llvm::get_param(bx.llfn(), 1);
         let catch_func = llvm::get_param(bx.llfn(), 2);
         let try_func_ty = bx.type_func(&[bx.type_i8p()], bx.type_void());
-        bx.invoke(try_func_ty, try_func, &[data], then, catch, None);
+        bx.invoke(try_func_ty, try_func, &[data], normal, caught, None);
 
         bx.switch_to_block(normal);
         bx.ret(bx.const_i32(0));
@@ -735,15 +744,17 @@ fn codegen_emcc_try<'ll>(
         let null = bx.const_null(bx.type_i8p());
         let funclet = bx.catch_pad(cs, &[null, flags, null]);
 
-        let ptr = bx.call_intrinsic("llvm.wasm.get.exception", &[funclet]);
-        let selector = bx.call_intrinsic("llvm.wasm.get.ehselector", &[funclet]);
+        let get_exc = bx.declare_cfn("llvm.wasm.get.exception", llvm::UnnamedAddr::No, ty_get_exc);
+        let get_sel = bx.declare_cfn("llvm.wasm.get.ehselector", llvm::UnnamedAddr::No, ty_get_sel);
+        let ptr = bx.call(ty_get_exc, get_exc, &[], Some(&funclet));
+        let selector = bx.call(ty_get_sel, get_sel, &[], Some(&funclet));
         let tydesc = bx.eh_catch_typeinfo();
         let rust_typeid = bx.call_intrinsic("llvm.eh.typeid.for", &[tydesc]);
         let is_rust_panic = bx.icmp(IntPredicate::IntEQ, selector, rust_typeid);
         let is_rust_panic = bx.zext(is_rust_panic, bx.type_bool());
 
         // Call __cxa_begin_catch
-        let cxa_begin_catch = bx.declare_cfn("__cxa_begin_catch", llvm::UnnamedAddr::No, ty_cxa_begin_catch);
+        let cxa_begin_catch = bx.declare_cfn("__cxa_begin_catch", llvm::UnnamedAddr::Local, ty_cxa_begin_catch);
         let adjusted_ptr = bx.call(ty_cxa_begin_catch, cxa_begin_catch, &[ptr], Some(&funclet));
 
 
@@ -755,7 +766,7 @@ fn codegen_emcc_try<'ll>(
         let catch_data = bx.alloca(catch_data_type, ptr_align);
         let catch_data_0 =
             bx.inbounds_gep(catch_data_type, catch_data, &[bx.const_usize(0), bx.const_usize(0)]);
-        bx.store(ptr, catch_data_0, ptr_align);
+        bx.store(adjusted_ptr, catch_data_0, ptr_align);
         let catch_data_1 =
             bx.inbounds_gep(catch_data_type, catch_data, &[bx.const_usize(0), bx.const_usize(1)]);
         bx.store(is_rust_panic, catch_data_1, i8_align);
@@ -764,11 +775,11 @@ fn codegen_emcc_try<'ll>(
         let catch_ty = bx.type_func(&[bx.type_i8p(), bx.type_i8p()], bx.type_void());
         bx.call(catch_ty, catch_func, &[data, catch_data], Some(&funclet));
         // Call __cxa_end_catch
-        let cxa_end_catch = bx.declare_cfn("__cxa_end_catch", llvm::UnnamedAddr::No, ty_cxa_end_catch);
+        let cxa_end_catch = bx.declare_cfn("__cxa_end_catch", llvm::UnnamedAddr::Local, ty_cxa_end_catch);
         bx.call(ty_cxa_end_catch, cxa_end_catch, &[], Some(&funclet));
-        bx.catch_ret(caught);
+        bx.catch_ret(&funclet, caught);
     });
-
+    println!("{:?}", llfn);
     // Note that no invoke is used here because by definition this function
     // can't panic (that's what it's catching).
     let ret = bx.call(llty, llfn, &[try_func, data, catch_func], None);
