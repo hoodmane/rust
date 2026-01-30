@@ -1702,6 +1702,10 @@ pub struct AddressSpace(pub u32);
 impl AddressSpace {
     /// LLVM's `0` address space.
     pub const ZERO: Self = AddressSpace(0);
+    /// WebAssembly `externref` address space (non-integral pointer).
+    pub const WASM_EXTERNREF: Self = AddressSpace(10);
+    /// WebAssembly `funcref` address space (non-integral pointer).
+    pub const WASM_FUNCREF: Self = AddressSpace(20);
 }
 
 /// The way we represent values to the backend

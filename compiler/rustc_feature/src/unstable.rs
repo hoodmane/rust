@@ -690,6 +690,8 @@ declare_features! (
     (unstable, used_with_arg, "1.60.0", Some(93798)),
     /// Target features on wasm.
     (unstable, wasm_target_feature, "1.30.0", Some(150260)),
+    /// Allows using WebAssembly reference types (`externref`).
+    (unstable, wasm_reference_types, "CURRENT_RUSTC_VERSION", None),
     /// Allows use of attributes in `where` clauses.
     (unstable, where_clause_attrs, "1.87.0", Some(115590)),
     /// Allows use of x86 `AMX` target-feature attributes and intrinsics

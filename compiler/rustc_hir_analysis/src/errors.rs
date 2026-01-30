@@ -1690,3 +1690,38 @@ pub(crate) struct EiiWithGenerics {
     pub eii_name: Symbol,
     pub impl_name: Symbol,
 }
+
+#[derive(Diagnostic)]
+#[diag(hir_analysis_invalid_externref_pointer)]
+#[note]
+pub(crate) struct InvalidExternrefPointer {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(hir_analysis_invalid_externref_reference)]
+#[note]
+pub(crate) struct InvalidExternrefReference {
+    #[primary_span]
+    pub span: Span,
+}
+
+#[derive(Diagnostic)]
+#[diag(hir_analysis_externref_in_field)]
+#[note]
+#[help]
+pub(crate) struct ExternrefInField {
+    #[primary_span]
+    pub field_span: Span,
+    pub adt_kind: &'static str,
+}
+
+#[derive(Diagnostic)]
+#[diag(hir_analysis_externref_in_static)]
+#[note]
+#[help]
+pub(crate) struct ExternrefInStatic {
+    #[primary_span]
+    pub span: Span,
+}

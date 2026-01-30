@@ -1,0 +1,65 @@
+error: `externref` cannot be used as a field in a struct
+  --> $DIR/externref-invalid-field.rs:13:12
+   |
+LL |     value: externref,
+   |            ^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a struct
+  --> $DIR/externref-invalid-field.rs:17:20
+   |
+LL | struct TupleStruct(externref);
+   |                    ^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a variant
+  --> $DIR/externref-invalid-field.rs:21:18
+   |
+LL |     WithRef { r: externref },
+   |                  ^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a variant
+  --> $DIR/externref-invalid-field.rs:22:15
+   |
+LL |     WithTuple(externref),
+   |               ^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a union
+  --> $DIR/externref-invalid-field.rs:27:12
+   |
+LL |     value: externref,
+   |            ^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a struct
+  --> $DIR/externref-invalid-field.rs:32:12
+   |
+LL |     tuple: (i32, externref),
+   |            ^^^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: `externref` cannot be used as a field in a struct
+  --> $DIR/externref-invalid-field.rs:37:10
+   |
+LL |     arr: [externref; 2],
+   |          ^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types cannot be stored in linear memory
+   = help: use `externref` only in function signatures or local variables
+
+error: aborting due to 7 previous errors
+

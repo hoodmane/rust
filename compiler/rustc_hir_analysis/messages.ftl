@@ -599,3 +599,21 @@ hir_analysis_wrong_number_of_generic_arguments_to_intrinsic =
         [one] parameter
         *[other] parameters
     }
+
+hir_analysis_invalid_externref_pointer =
+    cannot create a pointer to `externref`
+    .note = WebAssembly reference types do not have a linear memory address
+
+hir_analysis_invalid_externref_reference =
+    cannot create a reference to `externref`
+    .note = WebAssembly reference types do not have a linear memory address
+
+hir_analysis_externref_in_field =
+    `externref` cannot be used as a field in a {$adt_kind}
+    .note = WebAssembly reference types cannot be stored in linear memory
+    .help = use `externref` only in function signatures or local variables
+
+hir_analysis_externref_in_static =
+    `externref` cannot be used in a static variable
+    .note = WebAssembly reference types cannot be stored in linear memory
+    .help = use `externref` only in function signatures or local variables

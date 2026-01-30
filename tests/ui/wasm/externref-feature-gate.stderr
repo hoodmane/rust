@@ -1,0 +1,27 @@
+error[E0658]: use of unstable library feature `wasm_reference_types`
+  --> $DIR/externref-feature-gate.rs:6:5
+   |
+LL | use core::arch::wasm32::externref;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: add `#![feature(wasm_reference_types)]` to the crate attributes to enable
+
+error[E0658]: use of unstable library feature `wasm_reference_types`
+  --> $DIR/externref-feature-gate.rs:9:23
+   |
+LL | fn takes_externref(_: externref) {}
+   |                       ^^^^^^^^^
+   |
+   = help: add `#![feature(wasm_reference_types)]` to the crate attributes to enable
+
+error[E0658]: use of unstable library feature `wasm_reference_types`
+  --> $DIR/externref-feature-gate.rs:12:27
+   |
+LL | fn returns_externref() -> externref {
+   |                           ^^^^^^^^^
+   |
+   = help: add `#![feature(wasm_reference_types)]` to the crate attributes to enable
+
+error: aborting due to 3 previous errors
+
+For more information about this error, try `rustc --explain E0658`.

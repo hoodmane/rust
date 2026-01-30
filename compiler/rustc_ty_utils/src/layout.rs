@@ -9,6 +9,7 @@ use rustc_abi::{
 use rustc_hashes::Hash64;
 use rustc_hir::attrs::AttributeKind;
 use rustc_hir::find_attr;
+use rustc_hir::lang_items::LangItem;
 use rustc_index::{Idx as _, IndexVec};
 use rustc_middle::bug;
 use rustc_middle::query::Providers;
@@ -596,6 +597,28 @@ fn layout_of_uncached<'tcx>(
 
             let element_layout = cx.layout_of(element_ty)?;
             map_layout(cx.calc.scalable_vector_type(element_layout, element_count as u64))?
+        }
+
+        // WebAssembly externref type - a non-integral pointer in address space 10.
+        ty::Adt(def, _args) if tcx.is_lang_item(def.did(), LangItem::WasmExternref) => {
+            let ptr_size = dl.pointer_size_in(AddressSpace::WASM_EXTERNREF);
+            let ptr_align = dl.pointer_align_in(AddressSpace::WASM_EXTERNREF);
+            let scalar = Scalar::Initialized {
+                value: Pointer(AddressSpace::WASM_EXTERNREF),
+                valid_range: WrappingRange::full(ptr_size),
+            };
+            tcx.mk_layout(LayoutData {
+                variants: Variants::Single { index: FIRST_VARIANT },
+                fields: FieldsShape::Primitive,
+                backend_repr: BackendRepr::Scalar(scalar),
+                largest_niche: None,
+                uninhabited: false,
+                size: ptr_size,
+                align: ptr_align,
+                max_repr_align: None,
+                unadjusted_abi_align: ptr_align.abi,
+                randomization_seed: Hash64::ZERO,
+            })
         }
 
         // SIMD vector types.

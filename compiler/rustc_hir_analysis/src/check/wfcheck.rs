@@ -45,6 +45,83 @@ use crate::constrained_generic_params::{Parameter, identify_constrained_generic_
 use crate::errors::InvalidReceiverTyHint;
 use crate::{errors, fluent_generated as fluent};
 
+/// Returns `true` if the type contains `externref` anywhere (directly or nested in tuples/arrays).
+fn contains_wasm_externref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+    struct ExternrefVisitor<'tcx> {
+        tcx: TyCtxt<'tcx>,
+    }
+
+    impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for ExternrefVisitor<'tcx> {
+        type Result = ControlFlow<()>;
+
+        fn visit_ty(&mut self, t: Ty<'tcx>) -> Self::Result {
+            match t.kind() {
+                ty::Adt(def, _) if self.tcx.is_lang_item(def.did(), LangItem::WasmExternref) => {
+                    ControlFlow::Break(())
+                }
+                _ => t.super_visit_with(self),
+            }
+        }
+    }
+
+    ty.visit_with(&mut ExternrefVisitor { tcx }).is_break()
+}
+
+/// Returns `true` if the type is `externref` directly (not nested).
+fn is_wasm_externref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+    matches!(ty.kind(), ty::Adt(def, _) if tcx.is_lang_item(def.did(), LangItem::WasmExternref))
+}
+
+/// Checks a type for invalid pointers or references to `externref`.
+/// WebAssembly externref values cannot have pointers or references to them
+/// because they cannot be stored in linear memory.
+/// Returns an error if an invalid pointer/reference is found.
+fn check_wasm_externref_ptr_ref<'tcx>(
+    tcx: TyCtxt<'tcx>,
+    ty: Ty<'tcx>,
+    span: Span,
+) -> Result<(), ErrorGuaranteed> {
+    if !tcx.sess.target.is_like_wasm {
+        return Ok(());
+    }
+
+    /// Visitor that finds pointers/references to externref
+    struct ExternrefPtrRefVisitor<'tcx> {
+        tcx: TyCtxt<'tcx>,
+        found_ptr: bool,
+        found_ref: bool,
+    }
+
+    impl<'tcx> TypeVisitor<TyCtxt<'tcx>> for ExternrefPtrRefVisitor<'tcx> {
+        type Result = ControlFlow<()>;
+
+        fn visit_ty(&mut self, t: Ty<'tcx>) -> Self::Result {
+            match t.kind() {
+                ty::RawPtr(inner, _) if is_wasm_externref(self.tcx, *inner) => {
+                    self.found_ptr = true;
+                    ControlFlow::Break(())
+                }
+                ty::Ref(_, inner, _) if is_wasm_externref(self.tcx, *inner) => {
+                    self.found_ref = true;
+                    ControlFlow::Break(())
+                }
+                _ => t.super_visit_with(self),
+            }
+        }
+    }
+
+    let mut visitor = ExternrefPtrRefVisitor { tcx, found_ptr: false, found_ref: false };
+    ty.visit_with(&mut visitor);
+
+    if visitor.found_ptr {
+        Err(tcx.dcx().emit_err(errors::InvalidExternrefPointer { span }))
+    } else if visitor.found_ref {
+        Err(tcx.dcx().emit_err(errors::InvalidExternrefReference { span }))
+    } else {
+        Ok(())
+    }
+}
+
 pub(super) struct WfCheckingCtxt<'a, 'tcx> {
     pub(super) ocx: ObligationCtxt<'a, 'tcx, FulfillmentError<'tcx>>,
     body_def_id: LocalDefId,
@@ -1053,6 +1130,14 @@ fn check_type_defn<'tcx>(
                         ),
                     );
                 }
+
+                // WebAssembly externref cannot be stored in struct/enum fields (linear memory)
+                if tcx.sess.target.is_like_wasm && contains_wasm_externref(tcx, ty) {
+                    tcx.dcx().emit_err(errors::ExternrefInField {
+                        field_span: hir_ty.span,
+                        adt_kind: adt_def.variant_descr(),
+                    });
+                }
             }
 
             // For DST, or when drop needs to copy things around, all
@@ -1247,6 +1332,14 @@ pub(crate) fn check_static_item<'tcx>(
         let forbid_unsized = !(is_foreign_item && is_structurally_foreign_item());
 
         wfcx.register_wf_obligation(span, Some(WellFormedLoc::Ty(item_id)), item_ty.into());
+
+        // WebAssembly externref cannot be stored in statics (linear memory)
+        // and cannot have pointers or references to it
+        if tcx.sess.target.is_like_wasm && contains_wasm_externref(tcx, item_ty) {
+            return Err(tcx.dcx().emit_err(errors::ExternrefInStatic { span }));
+        }
+        check_wasm_externref_ptr_ref(tcx, item_ty, span)?;
+
         if forbid_unsized {
             let span = tcx.def_span(item_id);
             wfcx.register_bound(
@@ -1613,6 +1706,9 @@ fn check_fn_or_method<'tcx>(
             Some(WellFormedLoc::Param { function: def_id, param_idx: idx }),
             ty.into(),
         );
+
+        // WebAssembly externref cannot have pointers or references to it
+        let _ = check_wasm_externref_ptr_ref(tcx, ty, arg_span(idx));
     }
 
     check_where_clauses(wfcx, def_id);

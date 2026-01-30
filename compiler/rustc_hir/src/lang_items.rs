@@ -448,6 +448,9 @@ language_item_table! {
     // Reborrowing related lang-items
     Reborrow,                sym::reborrow,            reborrow,                   Target::Trait,          GenericRequirement::Exact(0);
     CoerceShared,            sym::coerce_shared,       coerce_shared,              Target::Trait,          GenericRequirement::Exact(0);
+
+    // WebAssembly reference types
+    WasmExternref,           sym::wasm_externref,      wasm_externref,             Target::Struct,         GenericRequirement::Exact(0);
 }
 
 /// The requirement imposed on the generics of a lang item

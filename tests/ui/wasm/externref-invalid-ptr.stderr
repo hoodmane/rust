@@ -1,0 +1,50 @@
+error: cannot create a pointer to `externref`
+  --> $DIR/externref-invalid-ptr.rs:13:27
+   |
+LL | fn takes_ptr_externref(_: *const externref) {}
+   |                           ^^^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: cannot create a pointer to `externref`
+  --> $DIR/externref-invalid-ptr.rs:16:31
+   |
+LL | fn takes_mut_ptr_externref(_: *mut externref) {}
+   |                               ^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: cannot create a reference to `externref`
+  --> $DIR/externref-invalid-ptr.rs:20:27
+   |
+LL | fn takes_ref_externref(_: &externref) {}
+   |                           ^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: cannot create a reference to `externref`
+  --> $DIR/externref-invalid-ptr.rs:23:31
+   |
+LL | fn takes_mut_ref_externref(_: &mut externref) {}
+   |                               ^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: cannot create a pointer to `externref`
+  --> $DIR/externref-invalid-ptr.rs:27:31
+   |
+LL | fn returns_ptr_externref() -> *const externref {
+   |                               ^^^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: cannot create a pointer to `externref`
+  --> $DIR/externref-invalid-ptr.rs:33:33
+   |
+LL | fn takes_tuple_with_ptr(_: (i32, *const externref)) {}
+   |                                 ^^^^^^^^^^^^^^^^
+   |
+   = note: WebAssembly reference types do not have a linear memory address
+
+error: aborting due to 6 previous errors
+
