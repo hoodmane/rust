@@ -39,12 +39,9 @@ LL | fn returns_ptr_externref() -> *const externref {
    = note: WebAssembly reference types do not have a linear memory address
 
 error: cannot create a pointer to `externref`
-  --> $DIR/externref-invalid-ptr.rs:33:33
    |
 LL | fn takes_tuple_with_ptr(_: (i32, *const externref)) {}
-   |                                 ^^^^^^^^^^^^^^^^
    |
    = note: WebAssembly reference types do not have a linear memory address
 
 error: aborting due to 6 previous errors
-

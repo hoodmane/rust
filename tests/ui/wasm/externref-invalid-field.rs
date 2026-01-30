@@ -6,7 +6,7 @@
 
 #![feature(wasm_reference_types)]
 
-use core::arch::wasm32::externref;
+use std::arch::wasm32::externref;
 
 // Invalid: externref in struct field
 struct MyStruct {

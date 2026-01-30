@@ -129,6 +129,7 @@
 #![feature(unsafe_pinned)]
 #![feature(utf16_extra)]
 #![feature(variant_count)]
+#![feature(wasm_reference_types)]
 // tidy-alphabetical-end
 //
 // Language features:

@@ -49,7 +49,8 @@ unsafe extern "unadjusted" {
 #[repr(transparent)]
 #[lang = "wasm_externref"]
 #[derive(Copy, Clone)]
-#[unstable(feature = "wasm_reference_types", issue = "none")]
+#[unstable(feature = "wasm_reference_types", issue = "128511")]
+#[allow(non_camel_case_types)]
 pub struct externref {
     // This is a compiler-magic type. The actual representation is
     // handled specially by the compiler as a pointer in address space 10.
@@ -69,7 +70,7 @@ impl externref {
     #[inline]
     #[cfg_attr(test, assert_instr("ref.null extern"))]
     #[target_feature(enable = "reference-types")]
-    #[unstable(feature = "wasm_reference_types", issue = "none")]
+    #[unstable(feature = "wasm_reference_types", issue = "128511")]
     pub unsafe fn null() -> Self {
         Self {
             _inner: llvm_ref_null_extern(),
@@ -96,12 +97,13 @@ impl externref {
     #[inline]
     #[cfg_attr(test, assert_instr("ref.is_null"))]
     #[target_feature(enable = "reference-types")]
-    #[unstable(feature = "wasm_reference_types", issue = "none")]
+    #[unstable(feature = "wasm_reference_types", issue = "128511")]
     pub unsafe fn is_null(self) -> bool {
         llvm_ref_is_null_extern(self._inner) != 0
     }
 }
 
+#[unstable(feature = "wasm_reference_types", issue = "128511")]
 impl core::fmt::Debug for externref {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         // Safety: is_null requires reference-types feature, but for Debug

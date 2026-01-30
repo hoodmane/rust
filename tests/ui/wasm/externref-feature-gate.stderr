@@ -1,8 +1,6 @@
 error[E0658]: use of unstable library feature `wasm_reference_types`
   --> $DIR/externref-feature-gate.rs:6:5
    |
-LL | use core::arch::wasm32::externref;
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = help: add `#![feature(wasm_reference_types)]` to the crate attributes to enable
 

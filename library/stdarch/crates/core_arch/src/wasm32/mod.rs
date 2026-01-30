@@ -19,9 +19,9 @@ mod memory;
 #[stable(feature = "simd_wasm32", since = "1.33.0")]
 pub use self::memory::*;
 
-mod externref;
-#[unstable(feature = "wasm_reference_types", issue = "none")]
-pub use self::externref::*;
+mod externref_mod;
+#[unstable(feature = "wasm_reference_types", issue = "128511")]
+pub use self::externref_mod::externref;
 
 /// Generates the [`unreachable`] instruction, which causes an unconditional [trap].
 ///

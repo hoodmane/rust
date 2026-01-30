@@ -7,7 +7,7 @@
 
 #![feature(wasm_reference_types)]
 
-use core::arch::wasm32::externref;
+use std::arch::wasm32::externref;
 
 // Invalid: raw pointer to externref
 fn takes_ptr_externref(_: *const externref) {}

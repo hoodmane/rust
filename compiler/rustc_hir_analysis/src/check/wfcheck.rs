@@ -72,17 +72,57 @@ fn is_wasm_externref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
     matches!(ty.kind(), ty::Adt(def, _) if tcx.is_lang_item(def.did(), LangItem::WasmExternref))
 }
 
+/// Returns `true` if the given `def_id` is an impl block or method on the `externref` type.
+/// This is used to exempt the `externref` type's own implementations from the
+/// pointer/reference restrictions (since traits like Clone require `&self`).
+fn is_impl_on_externref<'tcx>(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> bool {
+    // Check if this def_id is inside an impl block
+    let parent = tcx.local_parent(def_id);
+    if let hir::Node::Item(item) = tcx.hir_node_by_def_id(parent) {
+        if let hir::ItemKind::Impl(impl_) = &item.kind {
+            // Check if the impl is on externref
+            if let hir::TyKind::Path(hir::QPath::Resolved(_, path)) = &impl_.self_ty.kind {
+                if let hir::def::Res::Def(_, did) = path.res {
+                    return tcx.is_lang_item(did, LangItem::WasmExternref);
+                }
+            }
+        }
+    }
+    // Also check if def_id itself is an impl block on externref
+    if let hir::Node::Item(item) = tcx.hir_node_by_def_id(def_id) {
+        if let hir::ItemKind::Impl(impl_) = &item.kind {
+            if let hir::TyKind::Path(hir::QPath::Resolved(_, path)) = &impl_.self_ty.kind {
+                if let hir::def::Res::Def(_, did) = path.res {
+                    return tcx.is_lang_item(did, LangItem::WasmExternref);
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Checks a type for invalid pointers or references to `externref`.
 /// WebAssembly externref values cannot have pointers or references to them
 /// because they cannot be stored in linear memory.
 /// Returns an error if an invalid pointer/reference is found.
+///
+/// If `def_id` is provided and it's an impl on `externref`, the check is skipped
+/// to allow trait implementations like Clone that require `&self`.
 fn check_wasm_externref_ptr_ref<'tcx>(
     tcx: TyCtxt<'tcx>,
     ty: Ty<'tcx>,
     span: Span,
+    def_id: Option<LocalDefId>,
 ) -> Result<(), ErrorGuaranteed> {
     if !tcx.sess.target.is_like_wasm {
         return Ok(());
+    }
+
+    // Exempt implementations on externref itself (e.g., Clone, Debug)
+    if let Some(did) = def_id {
+        if is_impl_on_externref(tcx, did) {
+            return Ok(());
+        }
     }
 
     /// Visitor that finds pointers/references to externref
@@ -111,7 +151,7 @@ fn check_wasm_externref_ptr_ref<'tcx>(
     }
 
     let mut visitor = ExternrefPtrRefVisitor { tcx, found_ptr: false, found_ref: false };
-    ty.visit_with(&mut visitor);
+    let _ = ty.visit_with(&mut visitor);
 
     if visitor.found_ptr {
         Err(tcx.dcx().emit_err(errors::InvalidExternrefPointer { span }))
@@ -1338,7 +1378,7 @@ pub(crate) fn check_static_item<'tcx>(
         if tcx.sess.target.is_like_wasm && contains_wasm_externref(tcx, item_ty) {
             return Err(tcx.dcx().emit_err(errors::ExternrefInStatic { span }));
         }
-        check_wasm_externref_ptr_ref(tcx, item_ty, span)?;
+        check_wasm_externref_ptr_ref(tcx, item_ty, span, Some(item_id))?;
 
         if forbid_unsized {
             let span = tcx.def_span(item_id);
@@ -1708,7 +1748,7 @@ fn check_fn_or_method<'tcx>(
         );
 
         // WebAssembly externref cannot have pointers or references to it
-        let _ = check_wasm_externref_ptr_ref(tcx, ty, arg_span(idx));
+        let _ = check_wasm_externref_ptr_ref(tcx, ty, arg_span(idx), Some(def_id));
     }
 
     check_where_clauses(wfcx, def_id);
