@@ -42,3 +42,22 @@ pub extern "C" fn get_extern_externref() -> externref {
     // CHECK: call{{.*}}ptr addrspace(10) @extern_returns_externref()
     unsafe { extern_returns_externref() }
 }
+
+// Check that externref::null() calls the LLVM intrinsic
+#[no_mangle]
+#[target_feature(enable = "reference-types")]
+pub unsafe extern "C" fn create_null_externref() -> externref {
+    // CHECK-LABEL: @create_null_externref(
+    // CHECK: call ptr addrspace(10) @llvm.wasm.ref.null.extern()
+    // CHECK: ret ptr addrspace(10)
+    externref::null()
+}
+
+// Check that externref::is_null() calls the LLVM intrinsic
+#[no_mangle]
+#[target_feature(enable = "reference-types")]
+pub unsafe extern "C" fn check_externref_is_null(r: externref) -> bool {
+    // CHECK-LABEL: @check_externref_is_null(
+    // CHECK: call i32 @llvm.wasm.ref.is_null.extern(ptr addrspace(10)
+    r.is_null()
+}

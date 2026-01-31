@@ -6,16 +6,6 @@
 #[cfg(test)]
 use stdarch_test::assert_instr;
 
-// LLVM intrinsics for WebAssembly reference types
-#[allow(improper_ctypes)]
-unsafe extern "unadjusted" {
-    #[link_name = "llvm.wasm.ref.null.extern"]
-    fn llvm_ref_null_extern() -> *mut u8;
-
-    #[link_name = "llvm.wasm.ref.is_null.extern"]
-    fn llvm_ref_is_null_extern(r: *mut u8) -> i32;
-}
-
 /// WebAssembly `externref` type - an opaque reference to a host object.
 ///
 /// This type represents a reference to an object managed by the WebAssembly host
@@ -46,7 +36,6 @@ unsafe extern "unadjusted" {
 /// This means that JavaScript `null` values will be indistinguishable from
 /// Rust `None`. A future version may use wasm-gc features to distinguish
 /// these cases.
-#[repr(transparent)]
 #[lang = "wasm_externref"]
 #[derive(Copy, Clone)]
 #[unstable(feature = "wasm_reference_types", issue = "128511")]
@@ -54,8 +43,20 @@ unsafe extern "unadjusted" {
 pub struct externref {
     // This is a compiler-magic type. The actual representation is
     // handled specially by the compiler as a pointer in address space 10.
-    // We use *mut u8 here as a placeholder for the LLVM type.
-    _inner: *mut u8,
+    // The field is private and zero-sized; the actual value is entirely
+    // managed by the compiler's special layout for this lang item.
+    _private: (),
+}
+
+// LLVM intrinsics for WebAssembly reference types.
+// These must use externref directly since it has a special ABI (ptr addrspace(10)).
+#[allow(improper_ctypes)]
+unsafe extern "unadjusted" {
+    #[link_name = "llvm.wasm.ref.null.extern"]
+    fn llvm_ref_null_extern() -> externref;
+
+    #[link_name = "llvm.wasm.ref.is_null.extern"]
+    fn llvm_ref_is_null_extern(r: externref) -> i32;
 }
 
 impl externref {
@@ -72,9 +73,7 @@ impl externref {
     #[target_feature(enable = "reference-types")]
     #[unstable(feature = "wasm_reference_types", issue = "128511")]
     pub unsafe fn null() -> Self {
-        Self {
-            _inner: llvm_ref_null_extern(),
-        }
+        llvm_ref_null_extern()
     }
 
     /// Returns `true` if this `externref` is null.
@@ -99,7 +98,7 @@ impl externref {
     #[target_feature(enable = "reference-types")]
     #[unstable(feature = "wasm_reference_types", issue = "128511")]
     pub unsafe fn is_null(self) -> bool {
-        llvm_ref_is_null_extern(self._inner) != 0
+        llvm_ref_is_null_extern(self) != 0
     }
 }
 
