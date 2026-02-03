@@ -20,8 +20,33 @@ pub extern "C" fn pass_externref(r: externref) -> externref {
     r
 }
 
-// TODO: Test Option<externref> once niche optimization is implemented
-// Option<externref> should use nullable externref representation
+// Check that Option<externref> has the same representation as externref (niche optimization)
+// None is represented as ref.null extern
+#[no_mangle]
+pub extern "C" fn pass_option_externref(r: Option<externref>) -> Option<externref> {
+    // CHECK-LABEL: @pass_option_externref(
+    // CHECK-SAME: ptr addrspace(10)
+    // CHECK-SAME: %r
+    // CHECK: ret ptr addrspace(10)
+    r
+}
+
+#[no_mangle]
+#[target_feature(enable = "reference-types")]
+pub unsafe extern "C" fn create_none_externref() -> Option<externref> {
+    // CHECK-LABEL: @create_none_externref(
+    // CHECK: call ptr addrspace(10) @llvm.wasm.ref.null.extern()
+    // CHECK: ret ptr addrspace(10)
+    None
+}
+
+#[no_mangle]
+pub extern "C" fn create_some_externref(r: externref) -> Option<externref> {
+    // CHECK-LABEL: @create_some_externref(
+    // CHECK-SAME: ptr addrspace(10)
+    // CHECK: ret ptr addrspace(10)
+    Some(r)
+}
 
 // Check extern functions with externref parameters
 extern "C" {
