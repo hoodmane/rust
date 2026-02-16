@@ -72,24 +72,12 @@ fn is_wasm_externref<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
     matches!(ty.kind(), ty::Adt(def, _) if tcx.is_lang_item(def.did(), LangItem::WasmExternref))
 }
 
-/// Returns `true` if the given `def_id` is an impl block or method on the `externref` type.
+/// Returns `true` if the given `def_id` is a method on the `externref` type.
 /// This is used to exempt the `externref` type's own implementations from the
 /// pointer/reference restrictions (since traits like Clone require `&self`).
 fn is_impl_on_externref<'tcx>(tcx: TyCtxt<'tcx>, def_id: LocalDefId) -> bool {
-    // Check if this def_id is inside an impl block
     let parent = tcx.local_parent(def_id);
     if let hir::Node::Item(item) = tcx.hir_node_by_def_id(parent) {
-        if let hir::ItemKind::Impl(impl_) = &item.kind {
-            // Check if the impl is on externref
-            if let hir::TyKind::Path(hir::QPath::Resolved(_, path)) = &impl_.self_ty.kind {
-                if let hir::def::Res::Def(_, did) = path.res {
-                    return tcx.is_lang_item(did, LangItem::WasmExternref);
-                }
-            }
-        }
-    }
-    // Also check if def_id itself is an impl block on externref
-    if let hir::Node::Item(item) = tcx.hir_node_by_def_id(def_id) {
         if let hir::ItemKind::Impl(impl_) = &item.kind {
             if let hir::TyKind::Path(hir::QPath::Resolved(_, path)) = &impl_.self_ty.kind {
                 if let hir::def::Res::Def(_, did) = path.res {
@@ -114,7 +102,7 @@ fn check_wasm_externref_ptr_ref<'tcx>(
     span: Span,
     def_id: Option<LocalDefId>,
 ) -> Result<(), ErrorGuaranteed> {
-    if !tcx.sess.target.is_like_wasm {
+    if !tcx.sess.target.is_like_wasm || !tcx.features().wasm_reference_types() {
         return Ok(());
     }
 
@@ -1172,7 +1160,10 @@ fn check_type_defn<'tcx>(
                 }
 
                 // WebAssembly externref cannot be stored in struct/enum fields (linear memory)
-                if tcx.sess.target.is_like_wasm && contains_wasm_externref(tcx, ty) {
+                if tcx.sess.target.is_like_wasm
+                    && tcx.features().wasm_reference_types()
+                    && contains_wasm_externref(tcx, ty)
+                {
                     tcx.dcx().emit_err(errors::ExternrefInField {
                         field_span: hir_ty.span,
                         adt_kind: adt_def.variant_descr(),
@@ -1375,7 +1366,10 @@ pub(crate) fn check_static_item<'tcx>(
 
         // WebAssembly externref cannot be stored in statics (linear memory)
         // and cannot have pointers or references to it
-        if tcx.sess.target.is_like_wasm && contains_wasm_externref(tcx, item_ty) {
+        if tcx.sess.target.is_like_wasm
+            && tcx.features().wasm_reference_types()
+            && contains_wasm_externref(tcx, item_ty)
+        {
             return Err(tcx.dcx().emit_err(errors::ExternrefInStatic { span }));
         }
         check_wasm_externref_ptr_ref(tcx, item_ty, span, Some(item_id))?;
