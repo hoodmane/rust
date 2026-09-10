@@ -72,6 +72,41 @@ impl fmt::Debug for c_void {
     }
 }
 
+/// One WebAssembly `externref` table slot, the Rust analog of C's
+/// `__externref_t`.
+///
+/// A place of this type does not live in linear memory: it is a slot of the
+/// linker-synthesized `__externref_table`, and a pointer to it is the slot's
+/// index in that table. Reading from such a place compiles to `table.get` and
+/// writing to it compiles to `table.set`; the reference value itself only ever
+/// exists transiently in WebAssembly locals, never in memory that Rust can
+/// inspect. Consequently the "size" of this type is one table *slot* (reported
+/// as 1), pointer arithmetic on `*mut externref` is in slot units, and
+/// byte-level access to an `externref` place (e.g. through `memcpy` or a
+/// transmuted integer pointer) is undefined behavior.
+///
+/// Values of this type appear in `extern "C"` signatures where the C
+/// declaration uses a raw `__externref_t`; a C `__externref_t*` corresponds to
+/// `*mut externref`. The conversions between table slots and raw reference
+/// values happen implicitly at those loads and stores, so Rust itself only
+/// ever manipulates table indices.
+#[cfg(any(doc, target_family = "wasm"))]
+#[unstable(feature = "wasm_externref", issue = "none")]
+#[lang = "wasm_externref"]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy)]
+pub struct externref {
+    _private: [u8; 0],
+}
+
+#[cfg(any(doc, target_family = "wasm"))]
+#[unstable(feature = "wasm_externref", issue = "none")]
+impl fmt::Debug for externref {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("externref").finish()
+    }
+}
+
 // Link the MSVC default lib
 #[cfg(all(windows, target_env = "msvc"))]
 #[link(

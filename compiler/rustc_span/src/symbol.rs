@@ -2363,6 +2363,7 @@ symbols! {
         wasm32,
         wasm64,
         wasm_abi,
+        wasm_externref,
         wasm_import_module,
         wasm_target_feature,
         weak,

@@ -963,6 +963,16 @@ unsafe extern "C" {
         Packed: Bool,
     ) -> &'a Type;
 
+    // Operations on target extension types
+    pub(crate) fn LLVMTargetExtTypeInContext<'a>(
+        C: &'a Context,
+        Name: *const c_char,
+        TypeParams: *const &'a Type,
+        TypeParamCount: c_uint,
+        IntParams: *const c_uint,
+        IntParamCount: c_uint,
+    ) -> &'a Type;
+
     // Operations on array, pointer, and vector types (sequence types)
     pub(crate) safe fn LLVMPointerTypeInContext(C: &Context, AddressSpace: c_uint) -> &Type;
     pub(crate) fn LLVMVectorType(ElementType: &Type, ElementCount: c_uint) -> &Type;

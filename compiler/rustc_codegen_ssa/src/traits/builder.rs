@@ -519,6 +519,24 @@ pub trait BuilderMethods<'a, 'tcx>:
             let temp = self.load_operand(src.with_type(layout));
             temp.val.store_with_flags(self, dst.with_type(layout), flags);
         } else if !layout.is_zst() {
+            // An externref table slot has no byte representation in linear
+            // memory, so a `memcpy` over storage containing one is
+            // meaningless. A scalar externref copy is a `table.get` followed
+            // by a `table.set`, i.e. an ordinary load/store; an aggregate
+            // containing externref we cannot lower.
+            if self.sess().target.is_like_wasm && layout.ty.has_wasm_externref_in_memory(self.tcx())
+            {
+                if layout.backend_repr.is_scalar() {
+                    let temp = self.load_operand(src.with_type(layout));
+                    temp.val.store_with_flags(self, dst.with_type(layout), flags);
+                    return;
+                }
+                self.tcx().dcx().fatal(format!(
+                    "cannot copy a value of type `{}` byte-wise: \
+                     it contains WebAssembly `externref` table slots",
+                    layout.ty
+                ));
+            }
             let tt = typetree_from_ty(self.tcx(), layout.ty);
             // We seem to pass all values to memcpy with one more indirection.
             let tt = tt.add_indirection();

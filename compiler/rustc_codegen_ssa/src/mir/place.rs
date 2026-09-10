@@ -114,6 +114,15 @@ impl<'a, 'tcx, V: CodegenObject> PlaceRef<'tcx, V> {
     ) -> Self {
         if layout.peel_transparent_wrappers(bx).deref().is_scalable_vector() {
             Self::alloca_scalable(bx, layout)
+        } else if bx.tcx().sess.target.is_like_wasm
+            && layout.ty.has_wasm_externref_in_memory(bx.tcx())
+        {
+            // WebAssembly externref places do not live in linear memory: the
+            // backend's RefTypeMem2Local pass turns these allocas into wasm
+            // locals or externref-table stack slots, and it recognizes them
+            // by their allocated type, so the alloca must be typed rather
+            // than the usual byte array.
+            PlaceValue::new_sized(bx.alloca_with_ty(layout), layout.align.abi).with_type(layout)
         } else {
             Self::alloca_size(bx, layout.size, layout)
         }

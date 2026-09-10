@@ -1,0 +1,12 @@
+error[E0658]: use of unstable library feature `wasm_externref`
+  --> $DIR/feature-gate-wasm-externref.rs:6:14
+   |
+LL |     fn f1(x: core::ffi::externref);
+   |              ^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: add `#![feature(wasm_externref)]` to the crate attributes to enable
+   = note: this compiler was built on YYYY-MM-DD; consider upgrading it if it is out of date
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0658`.

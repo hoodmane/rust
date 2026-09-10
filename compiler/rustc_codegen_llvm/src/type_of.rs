@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use rustc_abi::Primitive::{Float, Int, Pointer};
-use rustc_abi::{Align, BackendRepr, FieldsShape, Scalar, Size, Variants};
+use rustc_abi::{AddressSpace, Align, BackendRepr, FieldsShape, Scalar, Size, Variants};
 use rustc_codegen_ssa::traits::*;
 use rustc_middle::bug;
 use rustc_middle::ty::layout::{LayoutOf, TyAndLayout};
@@ -312,6 +312,12 @@ impl<'tcx> LayoutLlvmExt<'tcx> for TyAndLayout<'tcx> {
         match scalar.primitive() {
             Int(i, _) => cx.type_from_integer(i),
             Float(f) => cx.type_from_float(f),
+            // On WebAssembly, the externref table address space is the layout
+            // representation of `core::ffi::externref`; its codegen type is
+            // the `target("wasm.externref")` reference type, not a pointer.
+            Pointer(AddressSpace::WASM_EXTERNREF) if cx.sess().target.is_like_wasm => {
+                crate::type_::llvm_type_wasm_externref(cx.llcx)
+            }
             Pointer(address_space) => cx.type_ptr_ext(address_space),
         }
     }

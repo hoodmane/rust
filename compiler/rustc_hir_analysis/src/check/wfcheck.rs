@@ -1023,6 +1023,23 @@ pub(crate) fn check_type_defn<'tcx>(
                         ),
                     );
                 }
+
+                // An externref place is a WebAssembly table slot, not linear
+                // memory, so it cannot be part of an aggregate's storage.
+                // (Pointers to externref are ordinary data and are fine;
+                // `has_wasm_externref_in_memory` stops at indirection.)
+                if tcx.lang_items().wasm_externref() != Some(adt_def.did())
+                    && ty.has_wasm_externref_in_memory(tcx)
+                {
+                    tcx.dcx().span_err(
+                        span,
+                        format!(
+                            "`externref` cannot be part of a field of a {}: \
+                             externref table slots cannot be stored in linear memory",
+                            adt_def.variant_descr()
+                        ),
+                    );
+                }
             }
 
             // For DST, or when drop needs to copy things around, all

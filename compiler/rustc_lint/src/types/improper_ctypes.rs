@@ -758,6 +758,11 @@ impl<'a, 'tcx> ImproperCTypesVisitor<'a, 'tcx> {
                 if def.is_phantom_data() {
                     return FfiPhantom(ty);
                 }
+                // `core::ffi::externref` is C's `__externref_t`: it exists
+                // precisely for `extern "C"` signatures.
+                if tcx.lang_items().wasm_externref() == Some(def.did()) {
+                    return FfiSafe;
+                }
                 match def.adt_kind() {
                     AdtKind::Struct | AdtKind::Union => {
                         if let Some(sym::cstring_type | sym::cstr_type) =

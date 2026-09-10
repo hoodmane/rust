@@ -289,6 +289,25 @@ pub(crate) fn llvm_type_ptr_in_address_space<'ll>(
     llvm::LLVMPointerTypeInContext(llcx, addr_space.0)
 }
 
+/// The LLVM `target("wasm.externref")` type: one WebAssembly `externref`
+/// table slot. This is the codegen type for scalars whose address space is
+/// `AddressSpace::WASM_EXTERNREF` (the layout representation of
+/// `core::ffi::externref`); loads and stores of it through a (thin, default
+/// address space) pointer are lowered by the WebAssembly backend to
+/// `table.get`/`table.set` with the pointer as the slot index.
+pub(crate) fn llvm_type_wasm_externref(llcx: &llvm::Context) -> &Type {
+    unsafe {
+        llvm::LLVMTargetExtTypeInContext(
+            llcx,
+            c"wasm.externref".as_ptr(),
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+            0,
+        )
+    }
+}
+
 impl<'ll, 'tcx> LayoutTypeCodegenMethods<'tcx> for CodegenCx<'ll, 'tcx> {
     fn backend_type(&self, layout: TyAndLayout<'tcx>) -> &'ll Type {
         layout.llvm_type(self)

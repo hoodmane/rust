@@ -619,6 +619,27 @@ fn layout_of_uncached<'tcx>(
             univariant(tys, kind)?
         }
 
+        // The WebAssembly `externref` type (`core::ffi::externref`): a single
+        // externref table slot, represented as the 1-byte pointer scalar of
+        // the externref table address space (`p10:8:8` in the wasm data
+        // layouts) so that sizes, offsets, and pointer arithmetic are in
+        // table-slot units. Codegen maps this scalar to the LLVM
+        // `target("wasm.externref")` type; the value never has a byte
+        // representation in linear memory.
+        //
+        // Only wasm data layouts define address space 10; elsewhere (e.g. a
+        // rustdoc host build that sees the `cfg(doc)` definition) fall
+        // through to the ordinary (zero-sized) struct layout.
+        ty::Adt(def, _args)
+            if tcx.lang_items().wasm_externref() == Some(def.did())
+                && tcx.sess.target.is_like_wasm =>
+        {
+            tcx.mk_layout(LayoutData::scalar(
+                cx,
+                scalar_unit(Pointer(AddressSpace::WASM_EXTERNREF)),
+            ))
+        }
+
         // Scalable vector types
         //
         // ```rust (ignore, example)

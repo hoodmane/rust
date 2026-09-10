@@ -1775,6 +1775,11 @@ impl AddressSpace {
     /// The address space for workgroup memory on nvptx and amdgpu.
     /// See e.g. the `gpu_launch_sized_workgroup_mem` intrinsic for details.
     pub const GPU_WORKGROUP: Self = AddressSpace(3);
+    /// The WebAssembly `externref` table address space: an "address" is a slot
+    /// index into the linker-synthesized `__externref_table`, and one slot is
+    /// one byte (`p10:8:8` in the WebAssembly data layouts), so byte offsets
+    /// coincide with slot offsets.
+    pub const WASM_EXTERNREF: Self = AddressSpace(10);
 }
 
 /// How many scalable vectors are in a `BackendRepr::ScalableVector`?

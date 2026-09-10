@@ -1,0 +1,38 @@
+error: `externref` cannot be part of a field of a struct: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:15:8
+   |
+LL |     x: externref,
+   |        ^^^^^^^^^
+
+error: `externref` cannot be part of a field of a struct: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:19:8
+   |
+LL |     x: [externref; 4],
+   |        ^^^^^^^^^^^^^^
+
+error: `externref` cannot be part of a field of a struct: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:23:8
+   |
+LL |     x: (u32, externref),
+   |        ^^^^^^^^^^^^^^^^
+
+error: `externref` cannot be part of a field of a struct: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:27:8
+   |
+LL |     x: Option<externref>,
+   |        ^^^^^^^^^^^^^^^^^
+
+error: `externref` cannot be part of a field of a variant: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:31:7
+   |
+LL |     A(externref),
+   |       ^^^^^^^^^
+
+error: `externref` cannot be part of a field of a union: externref table slots cannot be stored in linear memory
+  --> $DIR/externref-field-ban.rs:36:8
+   |
+LL |     x: core::mem::ManuallyDrop<externref>,
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 6 previous errors
+

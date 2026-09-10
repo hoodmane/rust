@@ -2004,6 +2004,41 @@ impl<'tcx> Ty<'tcx> {
         }
     }
 
+    /// Whether values of this type contain a WebAssembly `externref`
+    /// (`core::ffi::externref`) in their own storage (directly, or through
+    /// arrays, tuples, or generic arguments of nominal types).
+    ///
+    /// An externref place is a slot of the externref table, not linear
+    /// memory, so a type that mixes externref with ordinary data (or lets
+    /// generic code manipulate it byte-wise) has no coherent memory layout.
+    /// The walk deliberately stops at any pointer indirection: a
+    /// `*mut externref` or `&externref` is an ordinary slot-index pointer
+    /// and is fine anywhere.
+    ///
+    /// This is an over-approximation for nominal types: `externref` in any
+    /// generic argument counts (e.g. `Vec<externref>`), even if the
+    /// parameter is unused, with the exception of `PhantomData`. Fields of
+    /// nominal types are not traversed -- externref-typed fields are
+    /// rejected at the ADT's own definition site.
+    pub fn has_wasm_externref_in_memory(self, tcx: TyCtxt<'tcx>) -> bool {
+        match self.kind() {
+            ty::Adt(def, args) => {
+                if tcx.lang_items().wasm_externref() == Some(def.did()) {
+                    return true;
+                }
+                if tcx.lang_items().phantom_data() == Some(def.did()) {
+                    return false;
+                }
+                args.types().any(|ty| ty.has_wasm_externref_in_memory(tcx))
+            }
+            ty::Array(element_ty, _) | ty::Slice(element_ty) | ty::Pat(element_ty, _) => {
+                element_ty.has_wasm_externref_in_memory(tcx)
+            }
+            ty::Tuple(field_tys) => field_tys.iter().any(|ty| ty.has_wasm_externref_in_memory(tcx)),
+            _ => false,
+        }
+    }
+
     /// Fast path helper for primitives which are always `Copy` and which
     /// have a side-effect-free `Clone` impl.
     ///

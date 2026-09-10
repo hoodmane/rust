@@ -365,6 +365,9 @@ language_item_table! {
 
     MaybeUninit,             sym::maybe_uninit,        maybe_uninit,               Target::Union,          GenericRequirement::None;
 
+    /// One WebAssembly `externref` table slot; see `core::ffi::externref`.
+    WasmExternref,           sym::wasm_externref,      wasm_externref,             Target::Struct,         GenericRequirement::Exact(0);
+
     Termination,             sym::termination,         termination,                Target::Trait,          GenericRequirement::None;
 
     Try,                     sym::Try,                 try_trait,                  Target::Trait,          GenericRequirement::None;
